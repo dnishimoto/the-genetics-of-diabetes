@@ -611,18 +611,18 @@ struct CellTherapyPipelineView: View {
                 .frame(height: 320)
                 .padding(.horizontal, 8)
                 
-                Picker("TCF7L2 Regulation", selection: $controller.geneMode) {
-                    ForEach(PipelineController.GeneRegulationMode.allCases) { mode in
-                        Text(mode.rawValue).tag(mode)
-                    }
-                }
-                .pickerStyle(.segmented)
-                .padding(.horizontal, 24)
-                .padding(.top, 4)
+                //Picker("TCF7L2 Regulation", selection: $controller.geneMode) {
+                 //   ForEach(PipelineController.GeneRegulationMode.allCases) { mode in
+                        //Text(mode.rawValue).tag(mode)
+                 //   }
+               // }
+                //.pickerStyle(.segmented)
+                //.padding(.horizontal, 24)
+               // .padding(.top, 4)
 
-                GlucoseIndicatorView(stage: controller.stage, progress: controller.progress, geneMode: controller.geneMode)
-                    .padding(.horizontal, 24)
-                    .padding(.bottom, 6)
+                //GlucoseIndicatorView(stage: controller.stage, progress: controller.progress, geneMode: controller.geneMode)
+                    //.padding(.horizontal, 24)
+                    //.padding(.bottom, 6)
 
                 if controller.stage == .distribution {
                     Picker("Mode", selection: $controller.distributionMode) {
