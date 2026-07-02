@@ -1,105 +1,10 @@
 import SwiftUI
 import Combine
+import SceneKit
 
-// MARK: - Optional narration hook
-// Drop-in extension point matching the MasterMonitor pattern used across other
-// Louise AI projects. If a MasterMonitor-conforming object is supplied, it can
-// override or augment the static narrative text below (e.g. with a live AI
-// explanation). If nil, the built-in narrative strings are used as-is.
+
 protocol PipelineNarrationSource: AnyObject {
     func narration(for stage: PipelineStage) -> [String]?
-}
-
-// MARK: - Pipeline Stage Model
-
-enum PipelineStage: Int, CaseIterable, Identifiable {
-    case crisprCorrection = 0
-    case reprogramming
-    case differentiation
-    case transplantation
-    case distribution
-
-    var id: Int { rawValue }
-
-    var title: String {
-        switch self {
-        case .crisprCorrection: return "Step 1 · Genetic Correction"
-        case .reprogramming:    return "Step 2 · Reprogramming"
-        case .differentiation:  return "Step 3 · Differentiation"
-        case .transplantation:  return "Step 4 · Transplantation"
-        case .distribution:     return "Step 5 · Distribution"
-        }
-    }
-
-    var subtitle: String {
-        switch self {
-        case .crisprCorrection: return "CRISPR correction of TCF7L2 regulatory variants"
-        case .reprogramming:    return "Skin Cell → induced Pluripotent Stem Cell (iPSC)"
-        case .differentiation:  return "iPSC → Pancreatic Beta Cell"
-        case .transplantation:  return "Encapsulation, implantation & anti-fibrotic co-therapy"
-        case .distribution:     return "Autologous therapy vs. Universal Cell Bank"
-        }
-    }
-
-    var accentColor: Color {
-        switch self {
-        case .crisprCorrection: return .purple
-        case .reprogramming:    return .orange
-        case .differentiation:  return .cyan
-        case .transplantation:  return .blueGrayCompat
-        case .distribution:     return .mint
-        }
-    }
-
-    /// Condensed narrative explanation shown beneath the animation for this stage.
-    /// Each string is one scroll-panel line, mirroring the TCF7L2NarrativeOverlay format.
-    var narrative: [String] {
-        switch self {
-        case .crisprCorrection:
-            return [
-                "TCF7L2 is the strongest common genetic risk factor for type 2 diabetes. Its risk variants sit in noncoding regulatory regions, not the protein-coding sequence.",
-                "A guide RNA is designed to match the exact regulatory sequence, then paired with Cas9 (or a base/prime editor) to form the correction complex.",
-                "The complex is delivered into the cell, locates the target region, and either cuts for template-guided repair or rewrites the base directly without cutting both strands.",
-                "Expression is measured after editing — not just presence of the fix — because both too little and too much TCF7L2 activity impair beta cell function.",
-                "Goal: normalize TCF7L2 to its healthy functional range before this cell is carried forward into reprogramming."
-            ]
-        case .reprogramming:
-            return [
-                "A genetically corrected skin cell is exposed to reprogramming factors that reset its identity.",
-                "Because this cell is the patient's own, it is genetically identical to the patient — the basis for low immune-rejection risk later in the pipeline.",
-                "Over time the cell converts from a skin cell into an induced pluripotent stem cell (iPSC), capable of becoming nearly any cell type.",
-                "Note: the reprogramming method itself matters — viral methods can leave the cell more immunogenic than non-viral (episomal) methods, even though the DNA is unchanged."
-            ]
-        case .differentiation:
-            return [
-                "The iPSC is guided through a second transformation into a pancreatic beta cell.",
-                "As differentiation completes, the cell should begin actively secreting insulin — the functional signature of a true beta cell, not just a structural resemblance.",
-                "This is where the earlier TCF7L2 correction pays off directly: a properly corrected cell line should show normal insulin transcription and secretion here.",
-                "An uncorrected cell line can differentiate structurally but still show impaired glucose-stimulated insulin secretion."
-            ]
-        case .transplantation:
-            return [
-                "Mature beta cells are loaded into an encapsulation device that shields them from immune attack while letting insulin diffuse outward.",
-                "The device itself triggers a foreign body response — fibrotic scar tissue can wall it off and starve the enclosed cells of oxygen and nutrients over time.",
-                "Co-encapsulating mesenchymal stem cells (MSCs) suppresses this fibrotic response and has improved graft survival and function in animal studies.",
-                "Other strategies: capsules engineered to slow-release anti-fibrotic signals, or macrodevices with an active oxygen reservoir to keep cells alive despite scarring.",
-                "As of early 2026, human trials (e.g. Encellin, Phase 1) are actively testing device survival and fibrosis outcomes in real patients."
-            ]
-        case .distribution:
-            return [
-                "Two different strategies solve the same rejection problem in different ways — this is a branch point, not a continuation.",
-                "Autologous: this patient's own corrected cell line, used only for this patient. Low rejection risk by genetic identity, but slow and made fresh per patient.",
-                "Universal: one donor-derived, corrected cell bank distributed to many patients. Fast and scalable, but genetically foreign to everyone but the original donor.",
-                "Universal cells typically need additional immune-evasion edits (e.g. knocking out HLA Class I/II) to avoid rejection, since genetic correction alone doesn't make them 'invisible.'",
-                "Both paths converge on the same goal: a functional, non-rejected, insulin-secreting beta cell in the patient."
-            ]
-        }
-    }
-}
-
-// Small compatibility color so this file has no external color-asset dependency.
-extension Color {
-    static var blueGrayCompat: Color { Color(red: 0.38, green: 0.45, blue: 0.53) }
 }
 
 // MARK: - Pipeline Controller
@@ -115,6 +20,14 @@ final class PipelineController: ObservableObject {
         case universal = "Universal Bank"
         var id: String { rawValue }
     }
+    
+    enum GeneRegulationMode: String, CaseIterable, Identifiable {
+        case healthy = "Corrected (normal TCF7L2)"
+        case risk = "Risk Variant (dysregulated)"
+        var id: String { rawValue }
+    }
+
+    @Published var geneMode: GeneRegulationMode = .healthy
 
     /// Optional AI narration source (MasterMonitor-style plug-in point).
     weak var narrationSource: PipelineNarrationSource?
@@ -194,20 +107,30 @@ struct CellTherapyCanvas: View {
     let stage: PipelineStage
     let progress: Double            // 0...1
     let distributionMode: PipelineController.DistributionMode
+    let geneMode: PipelineController.GeneRegulationMode
 
     var body: some View {
-        Canvas { context, size in
-            switch stage {
-            case .crisprCorrection:
-                drawCrisprCorrection(context: context, size: size, value: progress)
-            case .reprogramming:
-                drawReprogramming(context: context, size: size, value: progress)
-            case .differentiation:
-                drawDifferentiation(context: context, size: size, value: progress)
-            case .transplantation:
-                drawTransplantation(context: context, size: size, value: progress)
-            case .distribution:
-                drawDistribution(context: context, size: size, value: progress, mode: distributionMode)
+        Group {
+            if stage == .crisprCorrection {
+                // Render the 3D view directly for the CRISPR correction stage
+                GeneRepair3DView()
+            } else {
+                // Use Canvas-based drawing for the remaining stages
+                Canvas { context, size in
+                    switch stage {
+                    case .reprogramming:
+                        drawReprogramming(context: context, size: size, value: progress)
+                    case .differentiation:
+                        drawDifferentiation(context: context, size: size, value: progress, geneMode: geneMode)
+                    case .transplantation:
+                        drawTransplantation(context: context, size: size, value: progress, geneMode: geneMode)
+                    case .distribution:
+                        drawDistribution(context: context, size: size, value: progress, mode: distributionMode)
+                    case .crisprCorrection:
+                        // Handled above; no Canvas drawing needed here.
+                        break
+                    }
+                }
             }
         }
     }
@@ -316,7 +239,7 @@ struct CellTherapyCanvas: View {
 
     // MARK: Stage 3 — Differentiation (iPSC -> Beta Cell)
 
-    private func drawDifferentiation(context: GraphicsContext, size: CGSize, value: Double) {
+    private func drawDifferentiation(context: GraphicsContext, size: CGSize, value: Double, geneMode: PipelineController.GeneRegulationMode) {
         let center = CGPoint(x: size.width / 2, y: size.height / 2)
         let radius = size.width / 4
 
@@ -324,8 +247,10 @@ struct CellTherapyCanvas: View {
         let cellRect = CGRect(x: center.x - radius, y: center.y - radius, width: radius * 2, height: radius * 2)
         context.fill(Path(ellipseIn: cellRect), with: .color(cellColor))
 
+        let insulinScale: Double = (geneMode == .healthy) ? 1.0 : 0.45
+
         if value > 0.5 {
-            let insulinOpacity = (value - 0.5) * 2
+            let insulinOpacity = ((value - 0.5) * 2) * insulinScale
             for i in 0..<5 {
                 let angle = Double(i) * 2 * .pi / 5 + value * .pi
                 let distance = Double(radius) + insulinOpacity * 30
@@ -338,6 +263,9 @@ struct CellTherapyCanvas: View {
                 if i == 0 && value > 0.7 {
                     drawLabel(context: context, text: "Insulin", at: CGPoint(x: pos.x, y: pos.y - 12), color: .yellow)
                 }
+            }
+            if geneMode == .risk && value > 0.7 {
+                drawLabel(context: context, text: "Impaired secretion", at: CGPoint(x: center.x, y: center.y + radius + 36), color: .yellow.opacity(0.8))
             }
         }
 
@@ -352,7 +280,7 @@ struct CellTherapyCanvas: View {
 
     // MARK: Stage 4 — Transplantation with anti-fibrotic co-therapy
 
-    private func drawTransplantation(context: GraphicsContext, size: CGSize, value: Double) {
+    private func drawTransplantation(context: GraphicsContext, size: CGSize, value: Double, geneMode: PipelineController.GeneRegulationMode) {
         let center = CGPoint(x: size.width / 2, y: size.height / 2)
         let deviceRect = CGRect(x: center.x - size.width * 0.3, y: center.y - 30, width: size.width * 0.6, height: 60)
         let devicePath = Path(roundedRect: deviceRect, cornerRadius: 15)
@@ -394,9 +322,11 @@ struct CellTherapyCanvas: View {
             drawLabel(context: context, text: "MSC (anti-fibrotic)", at: CGPoint(x: center.x, y: deviceRect.maxY + 30), color: .green)
         }
 
+        let insulinScale: Double = (geneMode == .healthy) ? 1.0 : 0.45
+
         // Insulin release once cells have settled.
         if value > 0.5 {
-            let insulinOpacity = (value - 0.5) * 2
+            let insulinOpacity = ((value - 0.5) * 2) * insulinScale
             for i in 0..<10 {
                 let posX = deviceRect.minX + (CGFloat(i) / 10.0) * deviceRect.width
                 let startY = center.y + 30
@@ -406,6 +336,9 @@ struct CellTherapyCanvas: View {
                 if i == 0 && value > 0.7 {
                     drawLabel(context: context, text: "Insulin", at: CGPoint(x: posX, y: endY + 12), color: .yellow)
                 }
+            }
+            if geneMode == .risk && value > 0.7 {
+                drawLabel(context: context, text: "Reduced insulin due to dysregulated TCF7L2", at: CGPoint(x: deviceRect.midX, y: deviceRect.minY - 28), color: .yellow)
             }
         }
     }
@@ -534,6 +467,7 @@ extension Color {
     }
 }
 
+
 // MARK: - Narrative Overlay (per stage)
 
 struct StageNarrativeOverlay: View {
@@ -574,184 +508,45 @@ struct StageNarrativeOverlay: View {
     }
 }
 
-struct CRISPRMechanicsView: View {
+struct GlucoseIndicatorView: View {
+    let stage: PipelineStage
+    let progress: Double
+    let geneMode: PipelineController.GeneRegulationMode
+
+    private func estimatedGlucose() -> Double {
+        // Crude model: insulin potential rises in differentiation/transplantation; risk mode reduces it.
+        let insulinScale: Double = (geneMode == .healthy) ? 1.0 : 0.45
+        switch stage {
+        case .differentiation, .transplantation:
+            let phase = max(0.0, progress - 0.5) * 2 // 0..1 after mid-phase
+            let insulin = min(1.0, max(0.0, phase * insulinScale))
+            let glucose = 1.0 - insulin * 0.8 // more insulin → lower glucose
+            return min(1.0, max(0.0, glucose))
+        default:
+            return 0.6 // neutral during other stages
+        }
+    }
+
     var body: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
-
-                    mechanicsSection(
-                        title: "Step 1 — Identify the Regulatory Variant",
-                        activity: "CRISPR Activity: None",
-                        bodyLines: [
-                            "Analyze the DNA sequence to determine whether a diabetes-associated regulatory variant is present."
-                        ])
-
-                    mechanicsSection(
-                        title: "Step 2 — Understand the Regulatory Region",
-                        activity: "CRISPR Activity: None",
-                        bodyLines: [
-                            "Determine how the region influences TCF7L2 expression (e.g., enhancer activity, transcription-factor binding)."
-                        ])
-
-                    Group {
-                        Text("Step 3 — Select the Editing Strategy")
-                            .font(.headline)
-                        subsection(
-                            subtitle: "Cas9",
-                            lines: [
-                                "Associates with a guide RNA; PAM + guide recognition confers specificity.",
-                                "Locally unwinds DNA; activates nuclease domains upon sufficient complementarity.",
-                                "Suitable for precise editing at a chosen locus."
-                            ])
-                        subsection(
-                            subtitle: "Cas3",
-                            lines: [
-                                "Part of a surveillance complex; recruited after recognition.",
-                                "Helicase unwinds DNA; nuclease degrades DNA processively.",
-                                "Suited for removing larger DNA regions, not single-base corrections."
-                            ])
-                    }
-
-                    Group {
-                        Text("Step 4 — Locate the TCF7L2 Regulatory Region")
-                            .font(.headline)
-                        subsection(
-                            subtitle: "Cas9 Mechanics",
-                            lines: [
-                                "Genome → PAM recognition → DNA opening → guide pairing → verification → activation.",
-                                "Remains bound on sufficient complementarity; otherwise dissociates."
-                            ])
-                        subsection(
-                            subtitle: "Cas3 Mechanics",
-                            lines: [
-                                "Surveillance complex recognizes DNA → recruits Cas3 → unwinding → progressive degradation."
-                            ])
-                    }
-
-                    Group {
-                        Text("Step 5 — DNA Recognition")
-                            .font(.headline)
-                        subsection(
-                            subtitle: "Cas9",
-                            lines: [
-                                "Guide RNA + DNA base pairing triggers conformational changes and nuclease activation."
-                            ])
-                        subsection(
-                            subtitle: "Cas3",
-                            lines: [
-                                "Recognition by surveillance complex; Cas3 is recruited post-recognition."
-                            ])
-                    }
-
-                    Group {
-                        Text("Step 6 — DNA Modification")
-                            .font(.headline)
-                        subsection(
-                            subtitle: "Cas9",
-                            lines: [
-                                "Cas9 binds target DNA; editing machinery (e.g., base/prime editor) modifies the site.",
-                                "Cellular repair processes resolve the edit; preserves surrounding regulatory architecture."
-                            ])
-                        subsection(
-                            subtitle: "Cas3",
-                            lines: [
-                                "Helicase activity unwinds DNA; nuclease degrades exposed DNA.",
-                                "Deletions can extend over long stretches rather than single-base corrections."
-                            ])
-                    }
-
-                    mechanicsSection(
-                        title: "Step 7 — Cellular Response",
-                        activity: nil,
-                        bodyLines: [
-                            "After Cas9-based editing, DNA maintenance pathways are engaged.",
-                            "Verify sequence change and restoration of TCF7L2 regulation toward physiological range.",
-                            "Cas3-driven deletions typically produce loss of targeted regions (more for research use)."
-                        ])
-
-                    mechanicsSection(
-                        title: "Step 8 — Functional Evaluation",
-                        activity: "CRISPR Activity: None",
-                        bodyLines: [
-                            "Assess TCF7L2 expression, downstream regulation, beta-cell characteristics, and glucose-responsive insulin secretion."
-                        ])
-
-                    Group {
-                        Text("Mechanical Comparison")
-                            .font(.headline)
-                        bulletComparison(
-                            title: "Cas9",
-                            bullets: [
-                                "Primary function: localized, targeted editing/cleavage.",
-                                "Recognition: guide RNA + PAM.",
-                                "DNA effect: localized modification.",
-                                "Precision: high for single-site changes.",
-                                "Typical use: correcting/modifying a specific sequence.",
-                                "Suitability for TCF7L2 variant correction: well aligned with precision goals."
-                            ])
-                        bulletComparison(
-                            title: "Cas3",
-                            bullets: [
-                                "Primary function: progressive DNA degradation post-recruitment.",
-                                "Recognition: surveillance complex; Cas3 is recruited.",
-                                "DNA effect: extended DNA removal.",
-                                "Precision: low for single-base changes.",
-                                "Typical use: deleting larger regions or probing regulatory element function.",
-                                "Suitability for TCF7L2 variant correction: less aligned; more for deletions in research."
-                            ])
-                    }
-                }
-                .padding(16)
-            }
-            .navigationTitle("CRISPR Mechanics")
-            .navigationBarTitleDisplayMode(.inline)
-        }
-    }
-
-    private func mechanicsSection(title: String, activity: String?, bodyLines: [String]) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(title).font(.headline)
-            if let activity {
-                Text(activity)
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-            }
-            ForEach(bodyLines, id: \.self) { line in
-                HStack(alignment: .top, spacing: 8) {
-                    Circle().fill(Color.accentColor).frame(width: 6, height: 6).padding(.top, 6)
-                    Text(line).font(.body)
-                }
-            }
-        }
-    }
-
-    private func subsection(subtitle: String, lines: [String]) -> some View {
+        let g = estimatedGlucose()
         VStack(alignment: .leading, spacing: 6) {
-            Text(subtitle)
-                .font(.subheadline)
-                .foregroundColor(.accentColor)
-            ForEach(lines, id: \.self) { line in
-                HStack(alignment: .top, spacing: 8) {
-                    Circle().fill(Color.accentColor.opacity(0.6)).frame(width: 5, height: 5).padding(.top, 6)
-                    Text(line).font(.callout)
-                }
+            HStack {
+                Text("Estimated Glucose")
+                    .font(.caption)
+                    .foregroundColor(.white.opacity(0.85))
+                Spacer()
+                Text(String(format: "%.0f%%", g * 100))
+                    .font(.caption2)
+                    .foregroundColor(.white.opacity(0.8))
             }
-        }
-    }
-
-    private func bulletComparison(title: String, bullets: [String]) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(title).font(.subheadline).foregroundColor(.accentColor)
-            ForEach(bullets, id: \.self) { item in
-                HStack(alignment: .top, spacing: 8) {
-                    RoundedRectangle(cornerRadius: 1).fill(Color.secondary).frame(width: 6, height: 2).padding(.top, 8)
-                    Text(item).font(.callout)
-                }
+            ZStack(alignment: .leading) {
+                Capsule().fill(Color.white.opacity(0.15)).frame(height: 8)
+                Capsule().fill(Color.interpolate(from: .green, to: .red, fraction: g)).frame(width: CGFloat(max(0.05, g)) * 220, height: 8)
             }
         }
     }
 }
+
 
 // MARK: - Stage Progress Indicator
 
@@ -792,8 +587,7 @@ struct CellTherapyPipelineView: View {
             .ignoresSafeArea()
 
             VStack(spacing: 0) {
-                HStack {
-                    Spacer()
+                HStack(spacing: 12) {
                     Button {
                         isShowingMechanics = true
                     } label: {
@@ -811,10 +605,24 @@ struct CellTherapyPipelineView: View {
                 CellTherapyCanvas(
                     stage: controller.stage,
                     progress: controller.progress,
-                    distributionMode: controller.distributionMode
+                    distributionMode: controller.distributionMode,
+                    geneMode: controller.geneMode
                 )
                 .frame(height: 320)
                 .padding(.horizontal, 8)
+                
+                Picker("TCF7L2 Regulation", selection: $controller.geneMode) {
+                    ForEach(PipelineController.GeneRegulationMode.allCases) { mode in
+                        Text(mode.rawValue).tag(mode)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .padding(.horizontal, 24)
+                .padding(.top, 4)
+
+                GlucoseIndicatorView(stage: controller.stage, progress: controller.progress, geneMode: controller.geneMode)
+                    .padding(.horizontal, 24)
+                    .padding(.bottom, 6)
 
                 if controller.stage == .distribution {
                     Picker("Mode", selection: $controller.distributionMode) {
@@ -838,12 +646,13 @@ struct CellTherapyPipelineView: View {
                     .padding(.bottom, 16)
             }
         }
-        .onAppear { controller.start() }
+        //.onAppear { controller.start() }
         .onDisappear { controller.stop() }
         .sheet(isPresented: $isShowingMechanics) {
             CRISPRMechanicsView()
                 .presentationDetents([.medium, .large])
         }
+      
     }
 
     private var controlBar: some View {
