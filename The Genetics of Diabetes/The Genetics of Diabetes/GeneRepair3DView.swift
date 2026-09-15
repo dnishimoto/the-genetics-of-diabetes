@@ -68,53 +68,52 @@ struct GeneRepair3DView: View {
         StepInfo(
             title: "Step 1 — Identify the Regulatory Variant",
             activity: "CRISPR Activity: None",
-            description: "Analyze the DNA sequence to determine whether a diabetes-associated regulatory variant is present.",
+            description: "Analyze the DNA sequence to locate rs7903146, a single-letter regulatory variant (SNP) in an intronic region of TCF7L2—a master gene controlling the Wnt signaling pathway and the single strongest common genetic risk factor for Type 2 diabetes (Grant et al., 2006; Nature Genetics). Correcting its dysregulation directly restores healthy insulin output in targeted pancreatic cells.",
             duration: 3.0
         ),
         StepInfo(
             title: "Step 2 — Understand the Regulatory Region",
             activity: "CRISPR Activity: None",
-            description: "Determine how the region influences TCF7L2 expression, enhancer activity, and transcription-factor binding.",
+            description: "Determine how this non-coding intronic/enhancer region acts as a faulty dimmer switch, impairing transcription-factor landing pads and TCF7L2 gene expression (Zhou et al., 2014; Human Molecular Genetics). Targeting this control region allows researchers to restore healthy gene levels without altering the essential protein blueprint.",
             duration: 3.0
         ),
         StepInfo(
             title: "Step 3 — Select the Editing Strategy",
             activity: nil,
-            description: "Cas9 performs precise targeting. Cas3 works with a surveillance complex for processive degradation.",
+            description: "Cas9 acts like a fine-tipped pen to fix single-letter mutations like rs7903146 while leaving neighboring control architecture intact (Jinek et al., 2012; Science). Cas3 works with a Cascade surveillance scout complex as a DNA shredder to erase broad functional zones for research (Sinkunas et al., 2011; EMBO Journal).",
             duration: 3.0
         ),
         StepInfo(
             title: "Step 4 — Locate the TCF7L2 Regulatory Region",
             activity: nil,
-            description: "Cas9 searches the genome, PAM is recognized, DNA opens, guide RNA pairs, and helicase helps expose the site.",
+            description: "Cas9 searches the genome for a PAM safety lock sequence before opening the DNA and pairing with the sgRNA molecular GPS (Sternberg et al., 2014; Nature). Cas3 requires the Cascade scout complex to find and bind the exact chromosomal coordinates first (Makarova et al., 2011; Nature Reviews Microbiology).",
             duration: 3.0
         ),
         StepInfo(
             title: "Step 5 — DNA Base-Pair Repair",
             activity: nil,
-            description: "The sgRNA does its work before the cut happens. It base-pairs with the matching DNA sequence next to the PAM and tells Cas9 where to bind and cut. RNA and Cas9 work on the local DNA backbone and remove the damaged base pair, insert the corrected pair, and reseal the strand. ",
+            description: "The sgRNA pairs with target DNA adjacent to the PAM like a key in a lock, directing base editing machinery (deaminase enzymes) to chemically rewrite the rs7903146 risk letter without creating double-strand breaks or unpredictable insertions/deletions (Nishimasu et al., 2014; Cell; Komor et al., 2016; Nature).",
             duration: 5.0
         ),
         StepInfo(
             title: "Step 6 — DNA Modification",
             activity: nil,
-            description: "Cas9 enables a precise edit at the site; Cas3 progressively degrades DNA over longer stretches.",
+            description: "Cas9 holds the site steady for precise point-mutation repair (Komor et al., 2016; Nature). Cas3 uses helicase and nuclease activity to unzip and processively chew up thousands of DNA base pairs, deleting the full enhancer region (Dolan et al., 2019; Molecular Cell).",
             duration: 3.0
         ),
         StepInfo(
             title: "Step 7 — Cellular Response",
             activity: nil,
-            description: "After Cas9 editing, verify sequence restoration. Cas3 deletions remove targeted regions for research.",
+            description: "Following Cas9 base editing, cellular repair pathways seal the edit to restore physiological TCF7L2 expression (Cox et al., 2015; Nature Medicine). Cas3 deletions permanently remove the targeted regulatory segment to probe its functional role (Dolan et al., 2019; Molecular Cell).",
             duration: 2.5
         ),
         StepInfo(
             title: "Step 8 — Functional Evaluation",
             activity: "CRISPR Activity: None",
-            description: "Assess TCF7L2 expression, downstream regulation, beta-cell characteristics, and glucose-responsive insulin secretion.",
+            description: "Assess TCF7L2 expression and downstream Wnt signaling in pancreatic beta cells to verify that glucose-responsive insulin secretion is restored when blood sugar rises—the ultimate functional metric for reversing diabetes risk (Lyssenko et al., 2007; Journal of Clinical Investigation).",
             duration: 3.0
         )
     ]
-
     var body: some View {
         ZStack(alignment: .topLeading) {
             SceneView(scene: scene, pointOfView: cameraNode, options: [.allowsCameraControl, .autoenablesDefaultLighting])
@@ -136,12 +135,12 @@ struct GeneRepair3DView: View {
 
                     if let activity = step.activity {
                         Text(activity)
-                            .font(.caption)
+                            .font(.default)
                             .foregroundColor(.white.opacity(0.85))
                     }
 
                     Text(step.description)
-                        .font(.caption2)
+                        .font(.default)
                         .foregroundColor(.white)
                         .fixedSize(horizontal: false, vertical: true)
 

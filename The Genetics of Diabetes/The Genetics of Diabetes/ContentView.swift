@@ -473,37 +473,42 @@ extension Color {
 struct StageNarrativeOverlay: View {
     let stage: PipelineStage
     let lines: [String]
+    
+    @Environment(\.horizontalSizeClass) private var hSizeClass
+    private var isPadLike: Bool { hSizeClass == .regular }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: isPadLike ? 12 : 8) {
             Text(stage.title)
-                .font(.headline)
+                .font(isPadLike ? .title2 : .headline)
                 .foregroundColor(stage.accentColor)
             Text(stage.subtitle)
-                .font(.subheadline)
+                .font(isPadLike ? .body : .subheadline)
                 .foregroundColor(.white.opacity(0.85))
             Divider().background(Color.white.opacity(0.3))
-            ScrollView {
-                VStack(alignment: .leading, spacing: 6) {
-                    ForEach(Array(lines.enumerated()), id: \.offset) { _, line in
-                        HStack(alignment: .top, spacing: 6) {
-                            Circle()
-                                .fill(stage.accentColor)
-                                .frame(width: 6, height: 6)
-                                .padding(.top, 6)
-                            Text(line)
-                                .font(.footnote)
-                                .foregroundColor(.white)
-                                .fixedSize(horizontal: false, vertical: true)
-                        }
+
+            VStack(alignment: .leading, spacing: isPadLike ? 10 : 6) {
+                ForEach(Array(lines.enumerated()), id: \.offset) { _, line in
+                    HStack(alignment: .top, spacing: isPadLike ? 10 : 6) {
+                        Circle()
+                            .fill(stage.accentColor)
+                            .frame(width: isPadLike ? 8 : 6, height: isPadLike ? 8 : 6)
+                            .padding(.top, isPadLike ? 7 : 6)
+                        Text(line)
+                            .font(isPadLike ? .callout : .footnote)
+                            .foregroundColor(.white)
+                            .lineSpacing(isPadLike ? 3 : 2)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
                 }
             }
-            .frame(maxHeight: 160)
         }
-        .padding(16)
-        .background(Color.black.opacity(0.6))
-        .cornerRadius(14)
+        .padding(isPadLike ? 22 : 16)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .stroke(Color.white.opacity(0.15), lineWidth: 1)
+        )
         .padding(.horizontal, 16)
     }
 }
@@ -512,6 +517,9 @@ struct GlucoseIndicatorView: View {
     let stage: PipelineStage
     let progress: Double
     let geneMode: PipelineController.GeneRegulationMode
+    
+    @Environment(\.horizontalSizeClass) private var hSizeClass
+    private var isPadLike: Bool { hSizeClass == .regular }
 
     private func estimatedGlucose() -> Double {
         // Crude model: insulin potential rises in differentiation/transplantation; risk mode reduces it.
@@ -529,20 +537,27 @@ struct GlucoseIndicatorView: View {
 
     var body: some View {
         let g = estimatedGlucose()
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: isPadLike ? 8 : 6) {
             HStack {
                 Text("Estimated Glucose")
-                    .font(.caption)
+                    .font(isPadLike ? .callout : .caption)
                     .foregroundColor(.white.opacity(0.85))
                 Spacer()
                 Text(String(format: "%.0f%%", g * 100))
-                    .font(.caption2)
+                    .font(isPadLike ? .caption : .caption2)
                     .foregroundColor(.white.opacity(0.8))
             }
             ZStack(alignment: .leading) {
-                Capsule().fill(Color.white.opacity(0.15)).frame(height: 8)
-                Capsule().fill(Color.interpolate(from: .green, to: .red, fraction: g)).frame(width: CGFloat(max(0.05, g)) * 220, height: 8)
+                GeometryReader { geo in
+                    Capsule()
+                        .fill(Color.white.opacity(0.15))
+                        .frame(width: geo.size.width, height: isPadLike ? 10 : 8)
+                    Capsule()
+                        .fill(Color.interpolate(from: .green, to: .red, fraction: g))
+                        .frame(width: max(geo.size.width * CGFloat(max(0.05, g)), isPadLike ? 16 : 12), height: isPadLike ? 10 : 8)
+                }
             }
+            .frame(height: isPadLike ? 10 : 8)
         }
     }
 }
@@ -551,18 +566,22 @@ struct GlucoseIndicatorView: View {
 // MARK: - Stage Progress Indicator
 
 struct StageProgressBar: View {
+    @Environment(\.horizontalSizeClass) private var hSizeClass
+    private var isPadLike: Bool { hSizeClass == .regular }
+    
     let current: PipelineStage
     let onSelect: (PipelineStage) -> Void
 
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: isPadLike ? 12 : 8) {
             ForEach(PipelineStage.allCases) { stage in
                 Button {
                     onSelect(stage)
                 } label: {
                     Circle()
                         .fill(stage == current ? stage.accentColor : Color.white.opacity(0.25))
-                        .frame(width: stage == current ? 12 : 8, height: stage == current ? 12 : 8)
+                        .frame(width: stage == current ? (isPadLike ? 14 : 12) : (isPadLike ? 10 : 8),
+                               height: stage == current ? (isPadLike ? 14 : 12) : (isPadLike ? 10 : 8))
                 }
                 .buttonStyle(.plain)
             }
@@ -576,83 +595,172 @@ struct StageProgressBar: View {
 struct CellTherapyPipelineView: View {
     @StateObject private var controller = PipelineController()
     @State private var isShowingMechanics = false
+    
+    @State private var showAbout: Bool = false
+
+    @Environment(\.horizontalSizeClass) private var hSizeClass
+    private var isPadLike: Bool { hSizeClass == .regular }
 
     var body: some View {
-        ZStack {
-            LinearGradient(
-                colors: [Color.black, controller.stage.accentColor.opacity(0.25)],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            .ignoresSafeArea()
-
-            VStack(spacing: 0) {
-                HStack(spacing: 12) {
-                    Button {
-                        isShowingMechanics = true
-                    } label: {
-                        Label("CRISPR Mechanics", systemImage: "info.circle")
-                            .foregroundColor(.white)
-                    }
-                    .padding(.trailing, 16)
-                }
-                .padding(.top, 8)
-
-                StageProgressBar(current: controller.stage) { stage in
-                    controller.jump(to: stage)
-                }
-
-                CellTherapyCanvas(
-                    stage: controller.stage,
-                    progress: controller.progress,
-                    distributionMode: controller.distributionMode,
-                    geneMode: controller.geneMode
+        NavigationStack
+        {
+            ZStack {
+                LinearGradient(
+                    colors: [Color.black, controller.stage.accentColor.opacity(0.25)],
+                    startPoint: .top,
+                    endPoint: .bottom
                 )
-                .frame(height: 320)
-                .padding(.horizontal, 8)
+                .ignoresSafeArea()
                 
-                //Picker("TCF7L2 Regulation", selection: $controller.geneMode) {
-                 //   ForEach(PipelineController.GeneRegulationMode.allCases) { mode in
-                        //Text(mode.rawValue).tag(mode)
-                 //   }
-               // }
-                //.pickerStyle(.segmented)
-                //.padding(.horizontal, 24)
-               // .padding(.top, 4)
-
-                //GlucoseIndicatorView(stage: controller.stage, progress: controller.progress, geneMode: controller.geneMode)
-                    //.padding(.horizontal, 24)
-                    //.padding(.bottom, 6)
-
-                if controller.stage == .distribution {
-                    Picker("Mode", selection: $controller.distributionMode) {
-                        ForEach(PipelineController.DistributionMode.allCases) { mode in
-                            Text(mode.rawValue).tag(mode)
+                ScrollView {
+                    if isPadLike {
+                        VStack(spacing: 12) {
+                            HStack(spacing: 12) {
+                                Button {
+                                    isShowingMechanics = true
+                                } label: {
+                                    Label("CRISPR Mechanics", systemImage: "info.circle")
+                                        .foregroundColor(.white)
+                                }
+                                .padding(.trailing, 16)
+                            }
+                            .padding(.top, 8)
+                            
+                            StageProgressBar(current: controller.stage) { stage in
+                                controller.jump(to: stage)
+                            }
+                            
+                            HStack(alignment: .top, spacing: 24) {
+                                // Left column: visualization and transport controls
+                                VStack(alignment: .leading, spacing: 16) {
+                                    CellTherapyCanvas(
+                                        stage: controller.stage,
+                                        progress: controller.progress,
+                                        distributionMode: controller.distributionMode,
+                                        geneMode: controller.geneMode
+                                    )
+                                    .frame(height: 480)
+                                    .padding(.horizontal, 8)
+                                    
+                                    controlBar
+                                }
+                                .frame(maxWidth: .infinity, alignment: .top)
+                                
+                                // Right column: narrative and configuration
+                                VStack(alignment: .leading, spacing: 16) {
+                                    StageNarrativeOverlay(
+                                        stage: controller.stage,
+                                        lines: controller.narrative(for: controller.stage)
+                                    )
+                                    
+                                    Picker("TCF7L2 Regulation", selection: $controller.geneMode) {
+                                        ForEach(PipelineController.GeneRegulationMode.allCases) { mode in
+                                            Text(mode.rawValue).tag(mode)
+                                        }
+                                    }
+                                    .pickerStyle(.segmented)
+                                    
+                                    GlucoseIndicatorView(stage: controller.stage, progress: controller.progress, geneMode: controller.geneMode)
+                                    
+                                    if controller.stage == .distribution {
+                                        Picker("Mode", selection: $controller.distributionMode) {
+                                            ForEach(PipelineController.DistributionMode.allCases) { mode in
+                                                Text(mode.rawValue).tag(mode)
+                                            }
+                                        }
+                                        .pickerStyle(.segmented)
+                                    }
+                                }
+                                .frame(maxWidth: .infinity, alignment: .top)
+                            }
+                            .padding(.horizontal, 24)
+                            .padding(.bottom, 16)
+                            .frame(maxWidth: 1200)
                         }
+                    } else {
+                        VStack(spacing: 0) {
+                            HStack(spacing: 12) {
+                                Button {
+                                    isShowingMechanics = true
+                                } label: {
+                                    Label("CRISPR Mechanics", systemImage: "info.circle")
+                                        .foregroundColor(.white)
+                                }
+                                .padding(.trailing, 16)
+                            }
+                            .padding(.top, 8)
+                            
+                            StageProgressBar(current: controller.stage) { stage in
+                                controller.jump(to: stage)
+                            }
+                            
+                            CellTherapyCanvas(
+                                stage: controller.stage,
+                                progress: controller.progress,
+                                distributionMode: controller.distributionMode,
+                                geneMode: controller.geneMode
+                            )
+                            .frame(height: 320)
+                            .padding(.horizontal, 8)
+                            
+                            Picker("TCF7L2 Regulation", selection: $controller.geneMode) {
+                                ForEach(PipelineController.GeneRegulationMode.allCases) { mode in
+                                    Text(mode.rawValue).tag(mode)
+                                }
+                            }
+                            .pickerStyle(.segmented)
+                            .padding(.horizontal, 24)
+                            .padding(.top, 4)
+                            
+                            GlucoseIndicatorView(stage: controller.stage, progress: controller.progress, geneMode: controller.geneMode)
+                                .padding(.horizontal, 24)
+                                .padding(.bottom, 6)
+                            
+                            if controller.stage == .distribution {
+                                Picker("Mode", selection: $controller.distributionMode) {
+                                    ForEach(PipelineController.DistributionMode.allCases) { mode in
+                                        Text(mode.rawValue).tag(mode)
+                                    }
+                                }
+                                .pickerStyle(.segmented)
+                                .padding(.horizontal, 24)
+                                .padding(.bottom, 4)
+                            }
+                            
+                            StageNarrativeOverlay(
+                                stage: controller.stage,
+                                lines: controller.narrative(for: controller.stage)
+                            )
+                            
+                            Spacer(minLength: 8)
+                            
+                            controlBar
+                                .padding(.bottom, 16)
+                        }
+                        .padding(.horizontal, 16)
                     }
-                    .pickerStyle(.segmented)
-                    .padding(.horizontal, 24)
-                    .padding(.bottom, 4)
                 }
-
-                StageNarrativeOverlay(
-                    stage: controller.stage,
-                    lines: controller.narrative(for: controller.stage)
-                )
-
-                Spacer(minLength: 8)
-
-                controlBar
-                    .padding(.bottom, 16)
+            } .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        showAbout = true
+                    } label: {
+                        Image(systemName: "info.circle")
+                    }
+                    .accessibilityLabel("About")
+                }
             }
         }
+       
+                    .sheet(isPresented: $showAbout) {
+                        AboutView()
+                    }
         //.onAppear { controller.start() }
         .onDisappear { controller.stop() }
         .sheet(isPresented: $isShowingMechanics) {
             CRISPRMechanicsView()
                 .presentationDetents([.medium, .large])
         }
-      
     }
 
     private var controlBar: some View {
@@ -687,3 +795,4 @@ struct CellTherapyPipelineView: View {
 #Preview {
     CellTherapyPipelineView()
 }
+
